@@ -1,58 +1,90 @@
 #!/usr/bin/perl
+
+#################################################################################
+#										#
+#	Perl script to control Stepper Motor 17NEMA 4 wires. 			#
+#	Example newControler.pl 1 2 0 						#
+#	Turn 2 rotations, speed 1 RPS, direction CW				#
+#	by Robert J Krasowski							#
+#	18 Jan 2018								#
+#										#
+#################################################################################
+
 use strict;
 use warnings;
 use Time::HiRes qw(usleep nanosleep);
 use WiringPi::API qw(:all);
-
-
+ 
+# Setting up pins to control stepper motor
+#
 my $dirPin = 20;
 my $controlPin = 21;
-my $resPin1 = 14;
-my $resPin2 = 15,
-my $resPin3 = 18;
-
-
-my $rps = 1;				# Speed rotation per minute
-my $numRot = 1;				# Number of full rotation
-my $dir = 1;				# 1 - CCW	0 - CW
 
 
 
+my $rps = $ARGV[0];			# Speed: rotation per minute	
+my $numRot = $ARGV[1];			# Number of rotation, can be in fraction	
+my $dir = $ARGV[2];			# Direction of rotation 1 - CCW 0 - CW
 
-
-my $delay = 1/$rps * 1000;
-
-print "Delay is $delay\n";
 
 
 my $api= WiringPi::API-> new;
-$api = int wiringPiSetupGpio();
+$api = wiringPiSetupGpio();
 $api = pinModeAlt($dirPin,1);
 $api = pinModeAlt($controlPin,1);
-
-$api = digitalWrite($dirPin,1);
-
-$api = digitalWrite($resPin1,1);
-$api = digitalWrite($resPin2,0);
-$api = digitalWrite($resPin3,1);
+$api = digitalWrite($dirPin,$dir);
 
 
-my $delayTemp = 50000;
+rotate($rps,$numRot,$dir);
 
-my $num = 800 * $numRot;
-for (my $i = 0; $i <= $num; $i++)
-	{
-		$api = digitalWrite($controlPin,1);
-		usleep($delayTemp);
-		$api = digitalWrite($controlPin,0);
-		usleep($delayTemp);
-		
-		until ($delayTemp == $delay)
-	       		{	
-				$delayTemp = $delayTemp - 1;
-				print "DelTemp = $delayTemp\n";
-			}
+
+
+
+sub rotate {
+
+	my $rpsInt = shift;
+	my $numRotInt = shift;
+	my $dirInt = shift;
+
+	my $delay = 1/$rpsInt * 600;
+	my $num = 800 * $numRotInt;
+	my $j = 1;
+	my $i;
+
+	my $complRot = $num /$numRotInt;
+	
+	my $dirText;
+	if ($dirInt == 1 )
+		{
+			$dirText = "CCW";
+		}
+	else
+		{
+			$dirText = "CW";
+		}
+	
+	for ($i=0; $i<=$num; $i++)
+		{
+			$api = digitalWrite($controlPin,1);
+			usleep($delay);
+			$api = digitalWrite($controlPin,0);
+			usleep($delay);
+
+			if ($i == $complRot)
+				{
+					print"Rotation number $j $dirText\n";
+					$j++;
+					$complRot = $complRot + $num / $numRot;
+				}
+
+		}
+
+		my $totalRotationFinal = ($i/800) - 0.00125;
+		print "Total number of rotation performed was $totalRotationFinal\n";
 	}
 
- print "Script is running\n";
+
+
+
+
 
